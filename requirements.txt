@@ -20,6 +20,10 @@ pandas>=2.0.0,<3.0.0
 matplotlib>=3.7.0,<4.0.0
 seaborn>=0.12.0,<1.0.0
 
+# Dashboard (altair is installed with streamlit)
+streamlit>=1.40.0
+pyarrow>=14.0.0,<21.0.0  # pyarrow 21+ needs NumPy 2; numpy is pinned <2 above
+
 # GUI Support
 PyQt5>=5.15.0,<6.0.0  # For advanced GUI features (optional)
 

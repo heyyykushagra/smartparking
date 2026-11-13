@@ -1,751 +1,179 @@
-# 🚗 Advanced Car Parking Space Detection System
-
-<div align="center">
+# 🅿️ Car Parking Occupancy Dashboard
 
 [![Python](https://img.shields.io/badge/Python-3.8%2B-blue.svg)](https://www.python.org/downloads/)
-[![OpenCV](https://img.shields.io/badge/OpenCV-4.5%2B-green.svg)](https://opencv.org/)
-[![YOLOv8](https://img.shields.io/badge/YOLOv8-Latest-orange.svg)](https://github.com/ultralytics/ultralytics)
+[![OpenCV](https://img.shields.io/badge/OpenCV-4.x-green.svg)](https://opencv.org/)
+[![Streamlit](https://img.shields.io/badge/Streamlit-dashboard-red.svg)](https://streamlit.io/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**An intelligent parking space detection system powered by computer vision and deep learning**
+A parking-space occupancy detector with a web dashboard and hourly analytics.
+Mark the spaces in a parking lot once, then see which spaces are free (green) and
+occupied (red) in an image or video. Log each reading, and find the busiest and
+quietest hours of the day.
 
-[Features](#-features) •
-[Quick Start](#-quick-start) •
-[For Students](#-for-students--academic-use) •
-[How It Works](#-how-it-works) •
-[Contributing](#-contributing)
+**Maintainer:** Kushagra Singh · [Your College] · GitHub [@heyyykushagra](https://github.com/heyyykushagra)
 
-</div>
-
----
-
-## 🎓 What Does This Do? (In Simple Terms)
-
-Imagine you're managing a parking lot and need to know:
-- ✅ How many parking spaces are empty right now?
-- ✅ Which specific spots are available?
-- ✅ How full is the parking lot over time?
-
-**This system does exactly that - automatically!**
-
-You provide an image or video of your parking lot, and the system:
-1. Lets you mark where the parking spaces are (just click and drag)
-2. Uses AI to detect cars in those spaces
-3. Shows you which spaces are empty (green) and occupied (red)
-4. Generates detailed reports with charts and statistics
-
-**No manual counting needed!** The computer does all the work.
-
-### Real-World Example
-
-```
-Input:  Picture of parking lot with 50 spaces
-Output: "35 spaces occupied, 15 available"
-        + Visual map showing which spots are free
-        + Detailed report with charts
-        + CSV file for data analysis
-```
+> **Based on:** [Car-Parking-Detection](https://github.com/8harath/Car-Parking-Detection),
+> originally created by **Bharath K** and released under the MIT License.
+> This fork keeps his detection pipeline and desktop tools, and adds the features listed below.
 
 ---
 
-## 📋 Table of Contents
+## ✨ What I added
 
-- [What Does This Do?](#-what-does-this-do-in-simple-terms)
-- [For Students & Academic Use](#-for-students--academic-use)
-- [Overview](#-overview)
-- [Features](#-features)
-- [Quick Start](#-quick-start)
-- [Step-by-Step Tutorial](#-step-by-step-tutorial)
-- [Detailed Setup](#-detailed-setup)
-- [Usage](#-usage)
-- [Configuration](#%EF%B8%8F-configuration)
-- [Project Structure](#-project-structure)
-- [How It Works](#-how-it-works)
-- [Troubleshooting](#-troubleshooting)
-- [Contributing](#-contributing)
-- [License](#-license)
-- [Acknowledgments](#-acknowledgments)
+| Feature | Where |
+|---|---|
+| **Streamlit dashboard** with Live, Hourly trends, Video and Layout tabs | `dashboard.py`, `.streamlit/config.toml` |
+| **Hourly analytics**: readings, average/peak occupancy and free spaces per hour, busiest and quietest hour, PNG chart, and a CLI | `occupancy_analytics.py` |
+| **Headless core**: the same CV pipeline without GUI windows or YOLO, so it runs in Streamlit and in tests | `parking_core.py` |
+| **Position-file loader fix**: `CarParkPos` can be a pickle (what the GUI saves) *or* plain-text `x,y` lines. The shipped file was text, and the old `pickle.load` couldn't read it | `parking_core.load_positions`, used by `enhanced_parking_detector.py` and `main.py` |
+| **Video resolution scaling**: `carPark.mp4` is ~1.45× the size of `carParkImg.jpg`. Positions and box size are scaled by *s*, and the pixel threshold by *s²*, when the aspect ratios match | `parking_core.scale_factor` / `analyze_frame` |
+| **Grid layout builder**: build rows/columns of spaces with a live preview, saved as a GUI-compatible pickle | dashboard → *Layout* tab |
+| **Sample data generator**: a **synthetic** office-lot pattern written to a separate file | `generate_sample_data.py` |
+| **Tests**: synthetic images and temporary CSVs, with no GUI and no YOLO. Tests can no longer overwrite the real `CarParkPos` | `tests/test_parking_core.py`, `tests/test_occupancy_analytics.py`, `tests/conftest.py` |
 
 ---
 
-## 🎓 For Students & Academic Use
+## 🚀 Quick start
 
-### Why This Project is Perfect for Learning
-
-This project is **excellent for academic purposes** because it demonstrates:
-
-**Computer Vision Concepts:**
-- Image processing (grayscale, blurring, thresholding)
-- Object detection using deep learning (YOLOv8)
-- Real-time video processing
-- Color space transformations (RGB to HSV)
-- Morphological operations
-
-**Software Engineering Skills:**
-- Clean code architecture
-- Configuration management
-- Error handling and logging
-- File I/O operations
-- CLI application development
-
-**Data Science & Analytics:**
-- Data collection and storage (CSV)
-- Statistical analysis
-- Data visualization (charts, graphs)
-- Report generation
-
-### Academic Projects You Can Build
-
-✅ **Final Year Project** - Complete system for smart parking
-✅ **Computer Vision Assignment** - Object detection implementation
-✅ **Machine Learning Project** - YOLO model application
-✅ **IoT Project** - Combine with sensors for real-time monitoring
-✅ **Data Analysis Project** - Analyze parking patterns over time
-✅ **Research Paper** - Study parking occupancy patterns
-
-### Learning Outcomes
-
-After studying this project, you'll understand:
-1. How to use OpenCV for image processing
-2. How to apply YOLOv8 for object detection
-3. How to build interactive GUI applications
-4. How to generate professional reports
-5. How to structure a real-world Python project
-6. How to document code professionally
-
-### Recommended Study Path
-
-```
-Week 1: Understand the basics (image processing, OpenCV)
-Week 2: Study YOLO and object detection
-Week 3: Run the project and experiment with parameters
-Week 4: Modify and add your own features
-Week 5: Create a presentation/report on your learnings
-```
-
-### Citations & Academic Use
-
-If you use this project in academic work, please cite:
-
-```
-Bharath K. (2024). Advanced Car Parking Space Detection System.
-GitHub repository. https://github.com/8harath/Car-Parking-Detection
-```
-
-**Note:** This project was created for the PNT Lab selection process at IIT Tirupati Navishkar by Bharath K from Jain Deemed to be University.
-
----
-
-## 🎯 Overview
-
-This project provides a **production-ready** parking space detection system that combines classical computer vision techniques with state-of-the-art deep learning (YOLOv8) to analyze parking lots in real-time.
-
-**Perfect for:**
-- Academic projects and research
-- Smart city applications
-- Parking lot management systems
-- Real-time parking guidance
-- Parking analytics and reporting
-- Learning computer vision and ML
-
-### Key Capabilities
-
-✅ **Real-time Detection** - Process live video feeds or static images
-✅ **ML-Powered** - YOLOv8 for accurate vehicle detection
-✅ **Interactive Setup** - Drag-and-drop parking space selection
-✅ **Comprehensive Reports** - Visual, text, and CSV outputs
-✅ **Special Parking Detection** - Identifies disabled parking spaces
-✅ **Historical Tracking** - CSV data logging for analytics
-✅ **Production Ready** - Robust error handling and logging
-
----
-
-## 🌟 Features
-
-### 1. **Interactive Parking Space Selection**
-- 🖱️ Drag-and-select multiple parking spaces at once
-- 📐 Grid-based automatic space allocation
-- 👁️ Visual feedback during selection
-- ↩️ Undo/Redo functionality
-- 🗑️ Right-click to remove individual spaces
-- 🔍 Zoom and pan capabilities
-
-### 2. **Intelligent Vehicle Detection**
-- 🤖 YOLOv8-based deep learning model
-- 🚙 Detects: Cars, Motorcycles, Buses, Trucks
-- 📊 Confidence scores for each detection
-- 🎯 Real-time detection capabilities
-- 👀 Handles occlusions and partial visibility
-- ⚡ GPU acceleration support
-
-### 3. **Comprehensive Reporting**
-- 📈 **Visual Reports**: Multi-panel analytics dashboard
-- 📝 **Text Reports**: Detailed statistics and metrics
-- 💾 **CSV Export**: Historical data for analysis
-- 🎨 **Color-coded Display**: Green (empty) / Red (occupied)
-- ⏱️ Real-time statistics display
-- 📊 Occupancy rate tracking
-
-### 4. **Advanced Features**
-- ♿ Special parking space detection (yellow markings)
-- 🔄 Video loop playback
-- 📍 Precise coordinate tracking
-- 🛡️ Robust error handling
-- 📝 Comprehensive logging
-- ⚙️ Centralized configuration
-
----
-
-## 🎬 Demo
-
-### Visual Output Examples
-
-The system generates comprehensive reports with:
-
-1. **Parking Lot Visualization** - Color-coded parking spaces with occupancy status
-2. **Statistics Dashboard** - Bar charts showing total, occupied, and available spaces
-3. **Space Type Distribution** - Pie charts for regular vs. special parking
-4. **Occupancy Analysis** - Detailed breakdown by parking type
-
-*Reports are saved in `reports/` directory with timestamp*
-
----
-
-## 🚀 Quick Start
-
-Get up and running in under 5 minutes!
-
-### Prerequisites
-
-- Python 3.8 or higher
-- pip package manager
-- (Optional) CUDA-capable GPU for faster processing
-
-### Installation
-
-```bash
-# 1. Clone the repository
-git clone https://github.com/8harath/Car-Parking-Detection.git
-cd Car-Parking-Detection
-
-# 2. Install dependencies
-pip install -r requirements.txt
-
-# 3. Run the application
-python run.py --image carParkImg.jpg
-```
-
-### First Run
-
-1. **Select Parking Spaces**: Click and drag to mark parking areas
-2. **Save Layout**: Press `S` to save your parking space configuration
-3. **Detect Vehicles**: Press `D` to run detection and generate reports
-4. **View Results**: Check the `reports/` directory for outputs
-
-**Keyboard Shortcuts:**
-- `D` - Detect vehicles & generate reports
-- `S` - Save parking layout
-- `R` - Reset all selections
-- `Z` - Undo last selection
-- `Q` - Quit application
-
----
-
-## 📖 Step-by-Step Tutorial
-
-### Complete Beginner's Guide
-
-This tutorial assumes you've never used the system before. Follow these steps exactly:
-
-#### Step 1: Installation (5 minutes)
-
-```bash
-# Open your terminal/command prompt
-
-# Navigate to where you want to save the project
-cd Desktop  # or any folder you prefer
-
-# Download the project
-git clone https://github.com/8harath/Car-Parking-Detection.git
-
-# Enter the project folder
-cd Car-Parking-Detection
-
-# Install required libraries
-pip install -r requirements.txt
-```
-
-**What just happened?** You downloaded the code and installed all the Python libraries it needs.
-
-#### Step 2: Run the Application (1 minute)
-
-```bash
-# Start the program
-python run.py --image carParkImg.jpg
-```
-
-**What you'll see:** A window will open showing a parking lot image.
-
-#### Step 3: Mark Parking Spaces (3 minutes)
-
-This is the most important step! You need to tell the computer where the parking spaces are.
-
-**How to mark spaces:**
-
-1. **Click and hold** your left mouse button at the **top-left** corner of a parking space
-2. **Drag** to the **bottom-right** corner of that space
-3. **Release** the mouse button
-4. You'll see a grid of purple rectangles appear - these are your marked spaces!
-
-**Tips:**
-- You can mark multiple spaces at once by dragging over them
-- If you make a mistake, **right-click** on a space to remove it
-- Press `Z` to undo your last selection
-- Press `R` to start over completely
-
-**Practice:** Try marking 5-10 spaces to get the hang of it.
-
-#### Step 4: Save Your Layout (10 seconds)
-
-```
-Press 'S' on your keyboard
-```
-
-**What happened?** The computer saved your parking space positions. You won't have to mark them again!
-
-#### Step 5: Detect Vehicles (30 seconds)
-
-```
-Press 'D' on your keyboard
-```
-
-**What happens:**
-1. The screen will show: "🚗 Detecting vehicles..."
-2. The AI will analyze each parking space
-3. Green spaces = Empty
-4. Red spaces = Occupied
-5. Reports are generated automatically
-
-#### Step 6: View Your Results (2 minutes)
-
-The program creates several files for you:
-
-**1. Visual Report** (`reports/parking_report_YYYYMMDD_HHMMSS.png`)
-   - Open this image to see charts and statistics
-   - Shows a colorful dashboard with graphs
-
-**2. Text Report** (`reports/parking_report_YYYYMMDD_HHMMSS.txt`)
-   - Open with any text editor
-   - Contains detailed numbers and percentages
-
-**3. CSV Data** (`data/parking_status.csv`)
-   - Open with Excel or Google Sheets
-   - Great for tracking over time
-
-#### Step 7: Understanding the Output
-
-When you look at the visual report, you'll see:
-
-```
-┌─────────────────────────────────────────┐
-│  Parking Lot Image (with colors)        │
-│  Green = Empty  |  Red = Occupied       │
-└─────────────────────────────────────────┘
-
-┌─────────────────────────────────────────┐
-│  Bar Chart: Parking Statistics          │
-│  Shows total, occupied, available       │
-└─────────────────────────────────────────┘
-
-┌─────────────────────────────────────────┐
-│  Pie Charts: Space Distribution         │
-│  Regular vs. Special parking            │
-└─────────────────────────────────────────┘
-```
-
-The text report tells you:
-- Total number of parking spaces
-- How many are occupied
-- How many are available
-- Occupancy percentage
-- Timestamp of detection
-
-### Common First-Time Questions
-
-**Q: "Do I need to mark spaces every time I run it?"**
-A: No! Once you press `S` to save, the spaces are remembered. Next time just press `D` to detect.
-
-**Q: "Can I use my own parking lot image?"**
-A: Yes! Just use: `python run.py --image path/to/your/image.jpg`
-
-**Q: "What if I mark the wrong spot?"**
-A: Right-click on it to remove, or press `Z` to undo, or press `R` to reset everything.
-
-**Q: "How accurate is the detection?"**
-A: The AI (YOLOv8) is about 90-95% accurate. You can adjust sensitivity in `config.py`.
-
-**Q: "Can this work with a video?"**
-A: Yes! Use: `python run.py --video your_video.mp4`
-
-**Q: "Where are my reports saved?"**
-A: In the `reports/` folder inside the project directory.
-
-### Next Steps After Tutorial
-
-Once you're comfortable with the basics, try:
-
-1. **Use your own images** - Take a photo of any parking lot
-2. **Adjust thresholds** - Edit `config.py` to fine-tune detection
-3. **Try video mode** - Process a video of a parking lot over time
-4. **Analyze patterns** - Open the CSV in Excel to see trends
-5. **Modify the code** - Add your own features!
-
-### Video Tutorial
-
-*Coming soon: YouTube video walkthrough*
-
----
-
-## 🛠️ Detailed Setup
-
-### 1. System Requirements
-
-**Minimum:**
-- Python 3.8+
-- 4GB RAM
-- 2GB free disk space
-
-**Recommended:**
-- Python 3.10+
-- 8GB RAM
-- NVIDIA GPU with CUDA support
-- 5GB free disk space
-
-### 2. Installation Steps
-
-#### Option A: Using pip (Recommended)
-
-```bash
-# Create virtual environment (recommended)
+```powershell
+# Windows / PowerShell
 python -m venv venv
-
-# Activate virtual environment
-# On Windows:
-venv\Scripts\activate
-# On Unix or MacOS:
-source venv/bin/activate
-
-# Install dependencies
+.\venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 ```
 
-#### Option B: Using conda
+(macOS/Linux: `source venv/bin/activate`.)
 
-```bash
-# Create conda environment
-conda create -n parking-detection python=3.10
-conda activate parking-detection
+### 1. Dashboard
 
-# Install dependencies
-pip install -r requirements.txt
+```powershell
+streamlit run dashboard.py
 ```
 
-### 3. Verify Installation
+- **Live**: analyse the sample image or one you upload. Shows total, occupied and free spaces and occupancy %. *Save this reading to log* appends a row to `data/parking_status.csv`.
+- **Hourly trends**: pick a day and see an hourly bar chart with the peak marked, the busiest and quietest hour, a summary table, and a CSV download.
+- **Video**: sample `carPark.mp4` (or an uploaded video) every N seconds. To log the samples with real timestamps, set *Recording started at…*.
+- **Layout**: view the current spaces, or build a grid of spaces and save it to `CarParkPos`.
 
-```bash
-# Test imports
-python -c "import cv2, numpy, pandas, ultralytics; print('✓ All dependencies installed')"
+Use the sidebar to choose the image source, the occupancy threshold, and which log to read (real or sample).
 
-# Check GPU availability (optional)
-python -c "import torch; print('CUDA available:', torch.cuda.is_available())"
+### 2. Hourly analytics (CLI)
+
+```powershell
+python occupancy_analytics.py                       # real log
+python occupancy_analytics.py --date 2026-11-13     # one day only
+python occupancy_analytics.py --csv data/sample_parking_status.csv
+```
+
+Prints the hourly table and the busiest and quietest hour, and saves a chart to `reports/hourly_occupancy_*.png`.
+
+### 3. Sample data (synthetic)
+
+```powershell
+python generate_sample_data.py          # 7 days, 15-minute readings
+```
+
+This writes **made-up demo data** to `data/sample_parking_status.csv`. It follows an office-lot
+pattern: quiet nights, a morning rush, a lunch dip, an evening drain-out, and quieter weekends.
+**It is not real detection output.** The script refuses to write to the real log, and the dashboard
+labels it as sample data.
+
+### 4. Original desktop tool
+
+```powershell
+python run.py --image carParkImg.jpg     # mark spaces (drag), S = save, D = detect + report
+python run.py --video carPark.mp4        # live video view
+```
+
+Keys: `D` detect & report · `S` save layout · `R` reset · `Z` undo · right-click removes a space · `Q` quit.
+
+---
+
+## 📍 Marking parking spaces
+
+The shipped `CarParkPos` is only a **starter layout** for `carParkImg.jpg`. For your own image
+(or to improve the sample), re-mark the spaces using either:
+
+- `python run.py --image your_image.jpg`, then drag to select a grid of spaces and press `S`, or
+- the dashboard's **Layout** tab: set start x/y, columns, rows and steps, check the preview, then *Save layout*.
+
+Both save the same pickle format. The dashboard keeps the previous file as `CarParkPos.bak`.
+
+**About accuracy:** no accuracy figures have been measured for this project. Results depend mostly
+on how well the spaces are marked (box position and size) and on the occupancy threshold, so
+check the annotated image and adjust the threshold for your footage.
+
+---
+
+## 📒 Occupancy log format
+
+`data/parking_status.csv` (falls back to `./parking_status.csv` if missing):
+
+```
+Total Slots,Occupied Slots,Available Slots,Timestamp
+64,39,25,2026-11-13 09:15:00
+```
+
+The timestamp format is `%Y-%m-%d %H:%M:%S`. It is the same schema the original project used,
+so old logs keep working.
+
+---
+
+## 🔍 How detection works
+
+1. Grayscale → Gaussian blur → adaptive threshold → median blur → dilate
+2. For each marked space, count the non-zero (edge) pixels
+3. Count ≥ `OCCUPANCY_THRESHOLD` (default 900) → **occupied**, otherwise **free**
+4. For frames larger than the image the spaces were marked on (same aspect ratio), positions and
+   box size are scaled by *s* and the threshold by *s²*
+
+The desktop tool (`run.py`, `D` key) also runs YOLOv8 vehicle detection for its reports. The
+dashboard and `parking_core.py` don't import YOLO, so they stay lightweight.
+
+Settings live in `config.py` (`PARKING_WIDTH`, `PARKING_HEIGHT`, `OCCUPANCY_THRESHOLD`, paths, colours).
+
+---
+
+## 📁 Project structure
+
+```
+dashboard.py               Streamlit dashboard (new)
+parking_core.py            Headless detection core (new)
+occupancy_analytics.py     Hourly analytics + CLI (new)
+generate_sample_data.py    Synthetic sample data (new)
+.streamlit/config.toml     Dashboard theme (new)
+run.py / gui.py / main.py  Original desktop entry points
+enhanced_parking_detector.py, car_detector.py, config.py
+CarParkPos                 Parking-space layout (starter)
+carParkImg.jpg, carPark.mp4  Sample media
+data/                      Occupancy logs
+reports/                   Generated charts and reports
+tests/                     pytest suite
 ```
 
 ---
 
-## 💻 Usage
+## 🧪 Tests
 
-### Basic Usage
-
-#### Process an Image
-
-```bash
-python run.py --image carParkImg.jpg
+```powershell
+python -m pytest
 ```
 
-#### Process a Video
-
-```bash
-python run.py --video carPark.mp4
-```
-
-### Advanced Usage
-
-#### With Custom Configuration
-
-```python
-from enhanced_parking_detector import EnhancedParkingDetector
-
-# Initialize detector
-detector = EnhancedParkingDetector(
-    image_path='path/to/image.png',
-    video_path='path/to/video.mp4'
-)
-
-# Process image
-detector.process_image()
-
-# Or process video
-detector.process_video()
-```
-
-#### Custom Thresholds
-
-Edit `config.py`:
-
-```python
-# Adjust detection sensitivity
-OCCUPANCY_THRESHOLD = 900  # Lower = more sensitive
-CONFIDENCE_THRESHOLD = 0.5  # YOLOv8 confidence (0-1)
-
-# Adjust parking space dimensions
-PARKING_WIDTH = 107
-PARKING_HEIGHT = 48
-```
-
----
-
-## ⚙️ Configuration
-
-All configuration is centralized in `config.py`:
-
-### Key Settings
-
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `PARKING_WIDTH` | 107 | Parking space width in pixels |
-| `PARKING_HEIGHT` | 48 | Parking space height in pixels |
-| `OCCUPANCY_THRESHOLD` | 900 | Pixel count threshold for occupancy |
-| `CONFIDENCE_THRESHOLD` | 0.5 | YOLOv8 detection confidence |
-| `MODEL_PATH` | 'yolov8n.pt' | Path to YOLO model |
-| `CSV_APPEND_MODE` | True | Append to CSV vs. overwrite |
-
-### Directory Structure
-
-The system automatically creates:
-
-```
-reports/       # Generated reports
-data/          # CSV data files
-models/        # ML models
-```
-
----
-
-## 📁 Project Structure
-
-```
-Car-Parking-Detection/
-├── config.py                      # Centralized configuration
-├── enhanced_parking_detector.py   # Main detection logic
-├── car_detector.py                # YOLO-based vehicle detection
-├── main.py                        # Video processing entry point
-├── run.py                         # CLI entry point
-├── setup_directories.py           # Directory initialization
-├── requirements.txt               # Python dependencies
-├── README.md                      # This file
-├── TROUBLESHOOTING.md            # Common issues and solutions
-├── LICENSE                        # MIT License
-├── .gitignore                    # Git ignore rules
-├── carParkImg.jpg                # Sample parking lot image
-├── carPark.mp4                   # Sample parking lot video
-├── CarParkPos                    # Saved parking positions
-├── reports/                      # Generated reports
-│   ├── parking_report_YYYYMMDD_HHMMSS.png
-│   └── parking_report_YYYYMMDD_HHMMSS.txt
-└── data/                         # CSV data files
-    └── parking_status.csv
-```
-
----
-
-## 🔍 How It Works
-
-### Architecture Overview
-
-```
-┌─────────────────┐
-│   Input         │
-│ (Image/Video)   │
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│ Space Selection │
-│   (Manual UI)   │
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│ Image Processing│
-│  (CV Pipeline)  │
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│ Vehicle Detection│
-│    (YOLOv8)     │
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│Space Occupancy  │
-│   Analysis      │
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│ Report Generation│
-│ (Visual/CSV)    │
-└─────────────────┘
-```
-
-### Detection Pipeline
-
-1. **Pre-processing**
-   - Grayscale conversion
-   - Gaussian blur (noise reduction)
-   - Adaptive thresholding
-   - Median blur
-   - Morphological operations (dilation)
-
-2. **Vehicle Detection**
-   - YOLOv8 inference on full image
-   - Filter for vehicle classes (car, truck, bus, motorcycle)
-   - Apply confidence threshold
-   - Match detections to parking spaces
-
-3. **Occupancy Analysis**
-   - Extract each parking space region
-   - Count non-zero pixels
-   - Compare against threshold
-   - Mark as occupied/empty
-
-4. **Special Parking Detection**
-   - Convert to HSV color space
-   - Detect yellow markings
-   - Identify horizontal/vertical lines
-   - Mark as special parking space
-
----
-
-## 🐛 Troubleshooting
-
-### Common Issues
-
-#### "ModuleNotFoundError: No module named 'cv2'"
-
-```bash
-pip install opencv-python
-```
-
-#### "YOLOv8 model not found"
-
-The model will download automatically on first run. Ensure internet connection.
-
-#### "CUDA out of memory"
-
-```python
-# In config.py, use CPU instead of GPU
-# Or reduce image resolution
-```
-
-#### "No parking spaces detected"
-
-Press `R` to reset and redraw parking spaces. Make sure to press `S` to save.
-
-For more issues, see [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
-
----
-
-## 🤝 Contributing
-
-Contributions are welcome! Here's how you can help:
-
-1. 🐛 **Report Bugs**: Open an issue with details
-2. 💡 **Suggest Features**: Share your ideas
-3. 🔧 **Submit PRs**: Fork, create branch, submit PR
-4. 📖 **Improve Docs**: Help us improve documentation
-5. ⭐ **Star the Repo**: Show your support!
-
-### Development Setup
-
-```bash
-# Fork and clone your fork
-git clone https://github.com/YOUR_USERNAME/Car-Parking-Detection.git
-
-# Create feature branch
-git checkout -b feature/amazing-feature
-
-# Make changes and commit
-git commit -m "Add amazing feature"
-
-# Push and create PR
-git push origin feature/amazing-feature
-```
+The new tests cover the core pipeline, the position loader, resolution scaling, video sampling,
+log loading, hourly stats and the CLI. Three older tests in `test_parking_detector.py` /
+`test_integration.py` were already failing before this fork: they expect a `zoom_level` attribute,
+a pre-loaded `current_image`, and an exception for a missing image, none of which the detector has.
 
 ---
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+MIT. See [LICENSE](LICENSE). The original copyright (Bharath K, 2024) is kept, and this fork's
+modifications are added below it.
 
----
+## 🙏 Credits
 
-## 🙏 Acknowledgments
-
-### Project Attribution
-This project was implemented by **Bharath K** from **Jain Deemed to be University** as part of his project submission for the PNT Lab selection process conducted by IIT Tirupati Navishkar.
-
-### Credits
-- **Original Inspiration**: [Murtaza's Computer Vision Zone](https://www.computervision.zone/)
-- **YOLOv8 Model**: [Ultralytics](https://github.com/ultralytics/ultralytics)
-- **Libraries**: OpenCV, PyTorch, Matplotlib, Pandas, NumPy
-
-### Special Thanks
-- 🏛️ **IIT Tirupati Navishkar** - For the selection process opportunity
-- 🎓 **Jain Deemed to be University** - For academic support
-- 👥 **Open Source Community** - For amazing tools and libraries
-
----
-
-## 📞 Contact
-
-**Bharath K**
-📧 Email: 8harath.k@gmail.com
-🌐 Website: [8harath.me](https://8harath.me)
-💻 GitHub: [@8harath](https://github.com/8harath)
-
----
-
-## 🌟 Star History
-
-If you find this project useful, please consider giving it a ⭐!
-
----
-
-## 📊 Project Status
-
-- ✅ Core Features: Complete
-- ✅ Documentation: Comprehensive
-- ✅ Testing: In Progress
-- 🔄 Continuous Improvement
-
----
-
-<div align="center">
-
-**[⬆ Back to Top](#-advanced-car-parking-space-detection-system)**
-
-Made with ❤️ by Bharath K
-
-</div>
+- **Bharath K**: original [Car-Parking-Detection](https://github.com/8harath/Car-Parking-Detection) project
+- **[Ultralytics](https://github.com/ultralytics/ultralytics)**: YOLOv8
+- **[Computer Vision Zone](https://www.computervision.zone/)** (Murtaza Hassan): the original parking-space counter idea and `cvzone`
+- Libraries: OpenCV, NumPy, pandas, Matplotlib, Streamlit, Altair

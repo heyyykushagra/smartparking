@@ -12,6 +12,7 @@ import pandas as pd
 
 import config
 from car_detector import CarDetector
+from parking_core import load_positions
 from setup_directories import setup_directories
 
 # Setup logging
@@ -52,10 +53,11 @@ class EnhancedParkingDetector:
         self.last_mouse_pos = None
 
     def load_parking_positions(self) -> None:
-        """Load previously saved parking positions from file"""
+        """Load previously saved parking positions (pickle or plain-text "x,y" lines)"""
         try:
-            with open(config.POSITION_FILE, "rb") as f:
-                self.posList = pickle.load(f)
+            if not os.path.exists(config.POSITION_FILE):
+                raise FileNotFoundError(config.POSITION_FILE)
+            self.posList = load_positions(config.POSITION_FILE)
             logger.info(f"Loaded {len(self.posList)} parking positions")
         except FileNotFoundError:
             logger.warning(
@@ -236,13 +238,17 @@ class EnhancedParkingDetector:
         return dilated
 
     def check_parking_space(
-        self, img_pro: np.ndarray, img: np.ndarray
-    ) -> Tuple[int, int, Dict[str, int]]:
-        """Check each parking space and determine if it's occupied or empty"""
+        self, img_pro: np.ndarray, img: np.ndarray, offset: int = 0, show_free_text: bool = True
+    ) -> Tuple[int, int]:
+        """Check each parking space and determine if it's occupied or empty.
+
+        img_pro must be a processed CLEAN frame (no drawings on it). Results are
+        drawn onto img, shifted by offset (used for the bordered image window).
+        """
         space_counter = 0
         occupied_slots = 0
 
-        for pos in self.posList:
+        for slot_no, pos in enumerate(self.posList, start=1):
             x, y = pos
             img_crop = img_pro[y : y + self.height, x : x + self.width]
             count = cv2.countNonZero(img_crop)
@@ -257,28 +263,29 @@ class EnhancedParkingDetector:
                 thickness = 2
                 occupied_slots += 1
 
-            # Draw rectangle and count
-            cv2.rectangle(img, pos, (pos[0] + self.width, pos[1] + self.height), color, thickness)
+            # Draw rectangle and slot number
+            dx, dy = x + offset, y + offset
+            cv2.rectangle(img, (dx, dy), (dx + self.width, dy + self.height), color, thickness)
             cvzone.putTextRect(
                 img,
-                str(count),
-                (x, y + self.height - 3),
+                str(slot_no),
+                (dx + 4, dy + self.height - 6),
                 scale=1,
                 thickness=2,
-                offset=0,
+                offset=2,
                 colorR=color,
             )
 
-        # Display statistics
-        cvzone.putTextRect(
-            img,
-            f"Free: {space_counter}/{len(self.posList)}",
-            (100, 50),
-            scale=3,
-            thickness=5,
-            offset=20,
-            colorR=(0, 200, 0),
-        )
+        if show_free_text:
+            cvzone.putTextRect(
+                img,
+                f"Free: {space_counter}/{len(self.posList)}",
+                (100, 50),
+                scale=3,
+                thickness=5,
+                offset=20,
+                colorR=(0, 200, 0),
+            )
 
         return space_counter, occupied_slots
 
@@ -325,6 +332,19 @@ class EnhancedParkingDetector:
         frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
+        # Parking positions are in the reference image's coordinates
+        ref_size = None
+        ref_path = self.image_path or config.DEFAULT_IMAGE_PATH
+        ref_img = cv2.imread(ref_path) if ref_path and os.path.exists(ref_path) else None
+        if ref_img is not None:
+            ref_size = (ref_img.shape[1], ref_img.shape[0])
+            if ref_size != (frame_width, frame_height):
+                logger.info(
+                    f"Resizing video frames {frame_width}x{frame_height} -> "
+                    f"{ref_size[0]}x{ref_size[1]} to match marked slots"
+                )
+                frame_width, frame_height = ref_size
+
         # Create a window that can be resized
         cv2.namedWindow(config.WINDOW_NAME, cv2.WINDOW_NORMAL)
         cv2.resizeWindow(config.WINDOW_NAME, frame_width, frame_height)
@@ -337,6 +357,10 @@ class EnhancedParkingDetector:
                 success, img = cap.read()
                 if not success:
                     break
+
+                # Slots were marked on the reference image; make the frame match its size
+                if ref_size and (img.shape[1], img.shape[0]) != ref_size:
+                    img = cv2.resize(img, ref_size)
 
                 processed_img = self.process_frame(img)
                 available_slots, occupied_slots = self.check_parking_space(processed_img, img)
@@ -419,20 +443,8 @@ class EnhancedParkingDetector:
                     border_size : border_size + height, border_size : border_size + width
                 ] = self.current_image.copy()
 
-                # Only draw parking spaces if there are any and not in reset state
-                if self.posList and not self.is_reset:
-                    for pos in self.posList:
-                        x, y = pos
-                        # Adjust coordinates for border
-                        x += border_size
-                        y += border_size
-                        cv2.rectangle(
-                            bordered_img,
-                            (x, y),
-                            (x + self.width, y + self.height),
-                            (255, 0, 255),
-                            2,
-                        )
+                # Slots are drawn (green = free, red = occupied, with slot numbers)
+                # by check_parking_space further below.
 
                 # Draw selection rectangle if drawing
                 if self.drawing and self.start_point and self.end_point:
@@ -470,9 +482,10 @@ class EnhancedParkingDetector:
 
                     # Only process image and show statistics if there are parking spaces
                     if total_spaces > 0:
-                        processed_img = self.process_frame(self.current_image)
+                        # Analyse the CLEAN image; draw results on the display copy only
+                        processed_img = self.process_frame(self.original_image)
                         available_slots, occupied_slots = self.check_parking_space(
-                            processed_img, self.current_image
+                            processed_img, bordered_img, offset=border_size, show_free_text=False
                         )
                         empty_spaces = available_slots
 
@@ -536,9 +549,9 @@ class EnhancedParkingDetector:
                     print("\n🚗 Detecting vehicles...")
 
                     # Process the image and detect cars
-                    processed_img = self.process_frame(self.current_image)
+                    processed_img = self.process_frame(self.original_image)
                     available_slots, occupied_slots = self.check_parking_space(
-                        processed_img, self.current_image
+                        processed_img, self.original_image.copy(), show_free_text=False
                     )
 
                     print("🤖 Running ML-based vehicle detection...")

@@ -1,0 +1,20 @@
+[theme]
+base = "light"
+# Parking-sign blue
+primaryColor = "#0057B8"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F2F5F9"
+textColor = "#1B2430"
+# Free spaces = green, occupied = red
+greenColor = "#1E9E4A"
+redColor = "#D62728"
+blueColor = "#0057B8"
+borderColor = "#DCE3EC"
+baseRadius = "6px"
+chartCategoricalColors = ["#0057B8", "#1E9E4A", "#D62728", "#F2A900", "#6B7A90"]
+
+[server]
+headless = true
+
+[browser]
+gatherUsageStats = false

@@ -1,6 +1,5 @@
 import logging
 import os
-import pickle
 from typing import List, Tuple
 
 import cv2
@@ -8,6 +7,7 @@ import cvzone
 import numpy as np
 
 import config
+from parking_core import load_positions
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -27,8 +27,9 @@ except Exception as e:
 
 # Load parking positions
 try:
-    with open(config.POSITION_FILE, "rb") as f:
-        posList = pickle.load(f)
+    if not os.path.exists(config.POSITION_FILE):
+        raise FileNotFoundError(config.POSITION_FILE)
+    posList = load_positions(config.POSITION_FILE)  # pickle or "x,y" text
     logger.info(f"Loaded {len(posList)} parking positions")
 except FileNotFoundError:
     logger.error(f"Parking positions file not found: {config.POSITION_FILE}")
