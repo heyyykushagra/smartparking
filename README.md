@@ -166,14 +166,3 @@ a pre-loaded `current_image`, and an exception for a missing image, none of whic
 
 ---
 
-## 📄 License
-
-MIT. See [LICENSE](LICENSE). The original copyright (Bharath K, 2024) is kept, and this fork's
-modifications are added below it.
-
-## 🙏 Credits
-
-- **Bharath K**: original [Car-Parking-Detection](https://github.com/8harath/Car-Parking-Detection) project
-- **[Ultralytics](https://github.com/ultralytics/ultralytics)**: YOLOv8
-- **[Computer Vision Zone](https://www.computervision.zone/)** (Murtaza Hassan): the original parking-space counter idea and `cvzone`
-- Libraries: OpenCV, NumPy, pandas, Matplotlib, Streamlit, Altair
