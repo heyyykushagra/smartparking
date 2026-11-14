@@ -123,8 +123,8 @@ def test_annotate_colors_and_copy():
     out = pc.annotate(img, r, show_ids=False)
     assert out is not img and out.shape == img.shape
     # top edge of occupied box is red, of empty box is green (BGR)
-    assert tuple(out[20, 20 + W // 2]) == config.COLOR_OCCUPIED
-    assert tuple(out[20, 200 + W // 2]) == config.COLOR_EMPTY
+    assert tuple(out[20, 20 + W // 2]) == pc.COLOR_OCCUPIED
+    assert tuple(out[20, 200 + W // 2]) == pc.COLOR_EMPTY
     assert np.array_equal(img, make_lot()[0])  # original untouched
 
 
@@ -192,3 +192,91 @@ def test_no_gui_or_yolo_imports():
     src = open(pc.__file__, encoding="utf-8").read()
     assert "imshow" not in src
     assert "ultralytics" not in src and "car_detector" not in src
+
+
+# ----------------------------------------------------------------- guidance
+def _result(spaces, scale=1.0):
+    """Minimal analyze_frame-style result from (x, y, occupied[, in_frame]) tuples."""
+    out = []
+    for i, s in enumerate(spaces, start=1):
+        x, y, occ = s[:3]
+        out.append({"id": i, "x": x, "y": y, "w": 10, "h": 10, "occupied": occ,
+                    "in_frame": s[3] if len(s) > 3 else True})
+    return {"spaces": out, "scale": scale}
+
+
+def test_recommend_nearest_free_first():
+    r = _result([(0, 0, False), (100, 100, False), (50, 50, False)])
+    recs = pc.recommend_spaces(r, entrance=(105, 105), top_n=3)
+    assert [x["id"] for x in recs] == [2, 3, 1]
+    assert [x["rank"] for x in recs] == [1, 2, 3]
+    assert recs[0]["distance_px"] == 0.0  # centre (105, 105)
+
+
+def test_recommend_skips_occupied_and_off_frame():
+    r = _result([(100, 100, True), (90, 90, False, False), (0, 0, False)])
+    recs = pc.recommend_spaces(r, entrance=(105, 105))
+    assert [x["id"] for x in recs] == [3]
+
+
+def test_recommend_lot_full():
+    assert pc.recommend_spaces(_result([(0, 0, True)]), entrance=(0, 0)) == []
+
+
+def test_recommend_top_n_and_tie_break():
+    r = _result([(10, 0, False), (-10, 0, False), (0, 50, False)])
+    recs = pc.recommend_spaces(r, entrance=(5, 5), top_n=2)
+    assert [x["id"] for x in recs] == [1, 2]  # equal distance -> lower id first
+
+
+def test_recommend_scales_entrance():
+    # frame is 2x the marked image: entrance (50, 50) -> (100, 100)
+    r = _result([(0, 0, False), (95, 95, False)], scale=2.0)
+    assert pc.recommend_spaces(r, entrance=(50, 50))[0]["id"] == 2
+
+
+def test_recommend_default_entrance_bottom_centre(monkeypatch):
+    monkeypatch.setattr(config, "ENTRANCE_POINT", None)
+    r = _result([(0, 0, False), (195, 285, False)])
+    assert pc.recommend_spaces(r, frame_size=(400, 300))[0]["id"] == 2
+    with pytest.raises(ValueError):
+        pc.recommend_spaces(r)
+
+
+def test_in_frame_flag():
+    img, _ = make_lot()  # 400x300
+    r = pc.analyze_frame(img, [(20, 20), (380, 20), (-5, 0)])
+    assert [s["in_frame"] for s in r["spaces"]] == [True, False, False]
+
+
+def test_recommend_on_real_pipeline():
+    img, pos = make_lot()  # space 1 occupied at (20,20), space 2 free at (200,20)
+    r = pc.analyze_frame(img, pos)
+    recs = pc.recommend_spaces(r, entrance=(0, 0))
+    assert [x["id"] for x in recs] == [2]
+
+
+def test_annotate_recommendation_draws_and_copies():
+    img, pos = make_lot()
+    r = pc.analyze_frame(img, pos)
+    recs = pc.recommend_spaces(r, entrance=(399, 299))
+    out = pc.annotate_recommendation(img, recs, (399, 299))
+    assert out is not img and not np.array_equal(out, img)
+    assert tuple(out[20, 200 + W // 2]) == pc.COLOR_GUIDE  # top edge of best space
+    assert np.array_equal(img, make_lot()[0])
+
+
+def test_find_parking_cli(tmp_path, monkeypatch, capsys):
+    import find_parking
+
+    img, pos = make_lot()
+    img_path, pos_path = str(tmp_path / "lot.png"), str(tmp_path / "pos")
+    cv2.imwrite(img_path, img)
+    pc.save_positions(pos, pos_path)
+    monkeypatch.chdir(tmp_path)
+    rc = find_parking.main(["--image", img_path, "--positions", pos_path,
+                            "--entrance", "0,0", "--save"])
+    out = capsys.readouterr().out
+    assert rc == 0
+    assert "Park in space #2" in out
+    assert os.listdir(tmp_path / "reports")

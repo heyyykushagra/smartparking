@@ -28,6 +28,7 @@ quietest hours of the day.
 | **Position-file loader fix**: `CarParkPos` can be a pickle (what the GUI saves) *or* plain-text `x,y` lines. The shipped file was text, and the old `pickle.load` couldn't read it | `parking_core.load_positions`, used by `enhanced_parking_detector.py` and `main.py` |
 | **Video resolution scaling**: `carPark.mp4` is ~1.45× the size of `carParkImg.jpg`. Positions and box size are scaled by *s*, and the pixel threshold by *s²*, when the aspect ratios match | `parking_core.scale_factor` / `analyze_frame` |
 | **Grid layout builder**: build rows/columns of spaces with a live preview, saved as a GUI-compatible pickle | dashboard → *Layout* tab |
+| **Parking guidance**: tells an arriving car which free space is nearest to the entrance, with an arrow on the image | `parking_core.recommend_spaces`, `find_parking.py`, dashboard → *Live* tab |
 | **Sample data generator**: a **synthetic** office-lot pattern written to a separate file | `generate_sample_data.py` |
 | **Tests**: synthetic images and temporary CSVs, with no GUI and no YOLO. Tests can no longer overwrite the real `CarParkPos` | `tests/test_parking_core.py`, `tests/test_occupancy_analytics.py`, `tests/conftest.py` |
 
@@ -50,14 +51,39 @@ pip install -r requirements.txt
 streamlit run dashboard.py
 ```
 
-- **Live**: analyse the sample image or one you upload. Shows total, occupied and free spaces and occupancy %. *Save this reading to log* appends a row to `data/parking_status.csv`.
+- **Live**: analyse the sample image or one you upload. Shows total, occupied and free spaces and occupancy %, plus **"Where should I park?"**: the nearest free space to the entrance and a few alternatives. *Save this reading to log* appends a row to `data/parking_status.csv`.
 - **Hourly trends**: pick a day and see an hourly bar chart with the peak marked, the busiest and quietest hour, a summary table, and a CSV download.
 - **Video**: sample `carPark.mp4` (or an uploaded video) every N seconds. To log the samples with real timestamps, set *Recording started at…*.
 - **Layout**: view the current spaces, or build a grid of spaces and save it to `CarParkPos`.
 
-Use the sidebar to choose the image source, the occupancy threshold, and which log to read (real or sample).
+Use the sidebar to choose the image source, the occupancy threshold, the entrance position, and which log to read (real or sample).
 
-### 2. Hourly analytics (CLI)
+### 2. Where should I park? (CLI)
+
+```powershell
+python find_parking.py                                    # sample image
+python find_parking.py --entrance 1280,1439 --top 5       # entrance at x,y
+python find_parking.py --video carPark.mp4 --at 30        # frame 30 s into the video
+python find_parking.py --save                             # also save reports/parking_guide_*.png
+```
+
+Example output:
+
+```
+Free 823 / 1064 spaces (22.6% occupied). Entrance at (1280, 1439).
+
+>>> Park in space #304  (~285 px from the entrance)
+```
+
+How it works: free spaces are ranked by the **straight-line distance** from the entrance to each
+space's centre. This is not the driving distance along the lanes. Spaces whose box falls outside
+the image are skipped. Give the entrance in the pixels of the image the spaces were marked on; it
+is scaled automatically for larger video frames. To set a permanent entrance, put
+`ENTRANCE_POINT = (x, y)` in `config.py`; the default is the bottom-centre of the image.
+A suggestion is only as reliable as the layout: if a box doesn't line up with a painted space,
+the suggested space may not really be free.
+
+### 3. Hourly analytics (CLI)
 
 ```powershell
 python occupancy_analytics.py                       # real log
@@ -67,7 +93,7 @@ python occupancy_analytics.py --csv data/sample_parking_status.csv
 
 Prints the hourly table and the busiest and quietest hour, and saves a chart to `reports/hourly_occupancy_*.png`.
 
-### 3. Sample data (synthetic)
+### 4. Sample data (synthetic)
 
 ```powershell
 python generate_sample_data.py          # 7 days, 15-minute readings
@@ -78,7 +104,7 @@ pattern: quiet nights, a morning rush, a lunch dip, an evening drain-out, and qu
 **It is not real detection output.** The script refuses to write to the real log, and the dashboard
 labels it as sample data.
 
-### 4. Original desktop tool
+### 5. Original desktop tool
 
 ```powershell
 python run.py --image carParkImg.jpg     # mark spaces (drag), S = save, D = detect + report
@@ -140,6 +166,7 @@ Settings live in `config.py` (`PARKING_WIDTH`, `PARKING_HEIGHT`, `OCCUPANCY_THRE
 dashboard.py               Streamlit dashboard (new)
 parking_core.py            Headless detection core (new)
 occupancy_analytics.py     Hourly analytics + CLI (new)
+find_parking.py            Nearest-free-space CLI (new)
 generate_sample_data.py    Synthetic sample data (new)
 .streamlit/config.toml     Dashboard theme (new)
 run.py / gui.py / main.py  Original desktop entry points
@@ -165,4 +192,3 @@ log loading, hourly stats and the CLI. Three older tests in `test_parking_detect
 a pre-loaded `current_image`, and an exception for a missing image, none of which the detector has.
 
 ---
-

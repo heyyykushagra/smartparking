@@ -3,11 +3,15 @@ Configuration file for Car Parking Detection System
 All configurable parameters are centralized here for easy management
 """
 
-from typing import Final, List, Tuple
+from typing import Final, List, Optional, Tuple
 
 # Parking Space Dimensions
 PARKING_WIDTH: Final[int] = 107
 PARKING_HEIGHT: Final[int] = 48
+
+# Parking guidance: where cars enter the lot, in the reference image's pixel
+# coordinates (x, y). None = bottom-centre of the image.
+ENTRANCE_POINT: Final[Optional[Tuple[int, int]]] = None
 
 # Detection Thresholds
 OCCUPANCY_THRESHOLD: Final[int] = 900  # Pixel count threshold for space occupancy

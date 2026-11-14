@@ -2,16 +2,26 @@
 base = "light"
 # Parking-sign blue
 primaryColor = "#0057B8"
-backgroundColor = "#FFFFFF"
-secondaryBackgroundColor = "#F2F5F9"
-textColor = "#1B2430"
-# Free spaces = green, occupied = red
-greenColor = "#1E9E4A"
-redColor = "#D62728"
+backgroundColor = "#F5F7FB"
+secondaryBackgroundColor = "#FFFFFF"
+textColor = "#14213D"
+# Free = teal-green, occupied = red (pair validated for colour-blind separation)
+greenColor = "#1BA39C"
+redColor = "#D1342F"
 blueColor = "#0057B8"
+orangeColor = "#E8A317"
 borderColor = "#DCE3EC"
-baseRadius = "6px"
-chartCategoricalColors = ["#0057B8", "#1E9E4A", "#D62728", "#F2A900", "#6B7A90"]
+baseRadius = "10px"
+buttonRadius = "8px"
+showWidgetBorder = true
+chartCategoricalColors = ["#0057B8", "#1BA39C", "#D1342F", "#E8A317"]
+
+[theme.sidebar]
+backgroundColor = "#0B1F3A"
+secondaryBackgroundColor = "#14305A"
+textColor = "#E6EDF7"
+primaryColor = "#4C9BFF"
+borderColor = "#24467A"
 
 [server]
 headless = true

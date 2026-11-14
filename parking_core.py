@@ -21,8 +21,10 @@ import config
 
 Position = Tuple[int, int]
 
-COLOR_EMPTY = config.COLOR_EMPTY  # BGR green
-COLOR_OCCUPIED = config.COLOR_OCCUPIED  # BGR red
+# Dashboard palette in BGR (pair validated for colour-blind separation).
+# The desktop tool (run.py) keeps its own colours from config.py.
+COLOR_EMPTY = (156, 163, 27)  # #1BA39C teal-green = free
+COLOR_OCCUPIED = (47, 52, 209)  # #D1342F red = occupied
 
 
 # --------------------------------------------------------------------------- #
@@ -172,6 +174,8 @@ def analyze_frame(
                 "h": int(height),
                 "pixel_count": count,
                 "occupied": count >= threshold,
+                # Box fully inside the frame (spaces outside it can't be checked)
+                "in_frame": x >= 0 and y >= 0 and x + width <= w_img and y + height <= h_img,
             }
         )
 
@@ -213,17 +217,111 @@ def annotate(
     return img
 
 
+# --------------------------------------------------------------------------- #
+# Parking guidance: nearest free space
+# --------------------------------------------------------------------------- #
+COLOR_GUIDE = (184, 87, 0)  # BGR parking-sign blue
+COLOR_ENTRANCE = (0, 200, 255)  # BGR amber
+
+
+def default_entrance(frame_size: Tuple[int, int]) -> Position:
+    """Bottom-centre of a frame of size (w, h)."""
+    w, h = frame_size
+    return (w // 2, h - 1)
+
+
+def recommend_spaces(
+    result: Dict,
+    entrance: Optional[Position] = None,
+    frame_size: Optional[Tuple[int, int]] = None,
+    top_n: int = 3,
+) -> List[Dict]:
+    """Rank free spaces by straight-line distance from the entrance.
+
+    `entrance` is in the reference image's coordinates (where the spaces were
+    marked); it is scaled with `result["scale"]` like the spaces. When it is
+    None, config.ENTRANCE_POINT is used, else the bottom-centre of the frame
+    (`frame_size` = (w, h) of the analysed frame).
+
+    Returns up to `top_n` dicts (nearest first) with id, x, y, w, h, the space
+    centre (cx, cy), distance_px (in frame pixels) and rank. Spaces whose box
+    lies outside the frame are skipped. An empty list means the lot is full.
+    """
+    scale = result.get("scale", 1.0)
+    if entrance is None:
+        entrance = config.ENTRANCE_POINT
+    if entrance is not None:
+        ex, ey = entrance[0] * scale, entrance[1] * scale
+    elif frame_size is not None:
+        ex, ey = default_entrance(frame_size)
+    else:
+        raise ValueError("Give an entrance point or the frame size")
+
+    ranked = []
+    for s in result["spaces"]:
+        if s["occupied"] or not s.get("in_frame", True):
+            continue
+        cx, cy = s["x"] + s["w"] / 2, s["y"] + s["h"] / 2
+        dist = float(np.hypot(cx - ex, cy - ey))
+        ranked.append({**s, "cx": int(cx), "cy": int(cy), "distance_px": round(dist, 1)})
+
+    ranked.sort(key=lambda r: (r["distance_px"], r["id"]))
+    for i, r in enumerate(ranked[: max(0, top_n)], start=1):
+        r["rank"] = i
+    return ranked[: max(0, top_n)]
+
+
+def annotate_recommendation(
+    img: np.ndarray,
+    recommendations: Sequence[Dict],
+    entrance: Position,
+) -> np.ndarray:
+    """Draw the entrance, an arrow to the best space and highlight alternatives.
+
+    `entrance` must be in the same (frame) coordinates as `img`.
+    Returns a copy; `img` is not modified.
+    """
+    out = img.copy()
+    h_img, w_img = out.shape[:2]
+    lw = max(2, int(round(min(w_img, h_img) / 400)))
+    ex, ey = int(entrance[0]), int(entrance[1])
+
+    for r in reversed(list(recommendations)):  # best drawn last (on top)
+        best = r["rank"] == 1
+        p1, p2 = (r["x"], r["y"]), (r["x"] + r["w"], r["y"] + r["h"])
+        cv2.rectangle(out, p1, p2, COLOR_GUIDE, lw * (3 if best else 1) + 1)
+        cv2.putText(out, f"#{r['rank']}", (r["x"] + 4, r["y"] + 18),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, COLOR_GUIDE, 2, cv2.LINE_AA)
+
+    if recommendations:
+        best = recommendations[0]
+        cv2.arrowedLine(out, (ex, ey), (best["cx"], best["cy"]), COLOR_GUIDE, lw + 1,
+                        cv2.LINE_AA, tipLength=0.04)
+
+    cv2.circle(out, (ex, ey), lw * 6, COLOR_ENTRANCE, -1)
+    cv2.circle(out, (ex, ey), lw * 6, (0, 0, 0), 2)
+    label_y = ey - lw * 8 if ey - lw * 8 > 20 else ey + lw * 12
+    cv2.putText(out, "ENTRANCE", (max(0, ex - 50), label_y), cv2.FONT_HERSHEY_SIMPLEX,
+                0.7, COLOR_ENTRANCE, 2, cv2.LINE_AA)
+    return out
+
+
 def draw_positions(
     frame: np.ndarray,
     positions: Sequence[Position],
     width: int = config.PARKING_WIDTH,
     height: int = config.PARKING_HEIGHT,
     color: Tuple[int, int, int] = config.COLOR_REGULAR,
+    thickness: Optional[int] = None,
 ) -> np.ndarray:
-    """Draw a layout (no analysis) onto a copy of the frame."""
+    """Draw a layout (no analysis) onto a copy of the frame.
+
+    thickness=None picks one that stays visible when a large image is shown small."""
     img = frame.copy()
+    if thickness is None:
+        thickness = max(2, int(round(max(img.shape[:2]) / 900)))
     for x, y in positions:
-        cv2.rectangle(img, (x, y), (x + width, y + height), color, 2)
+        cv2.rectangle(img, (x, y), (x + width, y + height), color, thickness)
     return img
 
 
